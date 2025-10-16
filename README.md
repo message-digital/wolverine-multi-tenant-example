@@ -1,6 +1,6 @@
 ﻿# WolverineMultiTenantExample
 
-A .NET 10 Worker Service project demonstrating technical challenges with WolverineFx in multi-tenant scenarios. This serves as a **reproduction case** for discussion with the WolverineFx maintainer team.
+A .NET 10 Worker Service project demonstrating technical challenges with WolverineFx in multi-tenant scenarios.
 
 ## Overview
 

@@ -16,6 +16,8 @@ public class OrderHandler
         ILogger<OrderHandler> logger)
     {
         _tenantContext = tenantContext;
+        // QUESTION: Typically we would inject TenantDbContext directly but due to how dependencies are resolved in generated code we cannot
+        // and must resolve it now or inject a factory. Is this acceptable?
         _dbContext = serviceProvider.GetRequiredService<TenantDbContext>();
         _logger = logger;
     }

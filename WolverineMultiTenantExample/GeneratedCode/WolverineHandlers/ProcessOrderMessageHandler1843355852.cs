@@ -10,15 +10,15 @@ namespace Internal.Generated.WolverineHandlers
     [global::System.CodeDom.Compiler.GeneratedCode("JasperFx", "1.0.0")]
     public sealed class ProcessOrderMessageHandler1843355852 : Wolverine.Runtime.Handlers.MessageHandler
     {
-        private readonly Microsoft.Extensions.Logging.ILogger<WolverineMultiTenantExample.OrderHandler> _logger1;
         private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _serviceScopeFactory;
+        private readonly Microsoft.Extensions.Logging.ILogger<WolverineMultiTenantExample.OrderHandler> _logger1;
         private readonly WolverineMultiTenantExample.Services.ITenantService _tenantService;
         private readonly Microsoft.Extensions.Logging.ILogger<WolverineMultiTenantExample.TenantContextMiddleware> _logger2;
 
-        public ProcessOrderMessageHandler1843355852(Microsoft.Extensions.Logging.ILogger<WolverineMultiTenantExample.OrderHandler> __logger1, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, WolverineMultiTenantExample.Services.ITenantService tenantService, Microsoft.Extensions.Logging.ILogger<WolverineMultiTenantExample.TenantContextMiddleware> __logger2)
+        public ProcessOrderMessageHandler1843355852(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, Microsoft.Extensions.Logging.ILogger<WolverineMultiTenantExample.OrderHandler> __logger1, WolverineMultiTenantExample.Services.ITenantService tenantService, Microsoft.Extensions.Logging.ILogger<WolverineMultiTenantExample.TenantContextMiddleware> __logger2)
         {
-            _logger1 = __logger1;
             _serviceScopeFactory = serviceScopeFactory;
+            _logger1 = __logger1;
             _tenantService = tenantService;
             _logger2 = __logger2;
         }
@@ -27,22 +27,27 @@ namespace Internal.Generated.WolverineHandlers
 
         public override async System.Threading.Tasks.Task HandleAsync(Wolverine.Runtime.MessageContext context, System.Threading.CancellationToken cancellation)
         {
+            var tenantIdentifier = new JasperFx.MultiTenancy.TenantId(context.TenantId);
             using var serviceScope = _serviceScopeFactory.CreateScope();
             
             /*
-            * Using the scoped provider service location approach
-            * because at least one dependency is directly using IServiceProvider or has an opaque, scoped or transient Lambda registration
+            * The service registration for WolverineMultiTenantExample.ITenantServiceFactory<WolverineMultiTenantExample.ISimpleTenantScoped> is an 'opaque' lambda factory with the Scoped lifetime and requires service location
             */
-            var tenantContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<WolverineMultiTenantExample.ITenantContext>(serviceScope.ServiceProvider);
+            var tenantServiceFactory2 = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<WolverineMultiTenantExample.ITenantServiceFactory<WolverineMultiTenantExample.ISimpleTenantScoped>>(serviceScope.ServiceProvider);
+            
+            /*
+            * The service registration for WolverineMultiTenantExample.ITenantServiceFactory<WolverineMultiTenantExample.Data.TenantDbContext> is an 'opaque' lambda factory with the Scoped lifetime and requires service location
+            */
+            var tenantServiceFactory1 = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<WolverineMultiTenantExample.ITenantServiceFactory<WolverineMultiTenantExample.Data.TenantDbContext>>(serviceScope.ServiceProvider);
             // The actual message body
             var processOrderMessage = (WolverineMultiTenantExample.Models.ProcessOrderMessage)context.Envelope.Message;
 
-            var tenantContextMiddleware = new WolverineMultiTenantExample.TenantContextMiddleware(tenantContext, _tenantService, _logger2);
-            await tenantContextMiddleware.BeforeAsync(context).ConfigureAwait(false);
+            var tenantContextMiddleware = new WolverineMultiTenantExample.TenantContextMiddleware(_tenantService, _logger2);
+            var tenant = await tenantContextMiddleware.BeforeAsync(context, tenantIdentifier).ConfigureAwait(false);
             try
             {
                 System.Diagnostics.Activity.Current?.SetTag("message.handler", "WolverineMultiTenantExample.OrderHandler");
-                var orderHandler = new WolverineMultiTenantExample.OrderHandler(tenantContext, serviceScope.ServiceProvider, _logger1);
+                var orderHandler = new WolverineMultiTenantExample.OrderHandler(tenant, tenantServiceFactory1, tenantServiceFactory2, _logger1);
                 
                 // The actual message execution
                 await orderHandler.Handle(processOrderMessage).ConfigureAwait(false);

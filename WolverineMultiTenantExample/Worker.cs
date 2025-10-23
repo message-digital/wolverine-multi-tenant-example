@@ -1,4 +1,6 @@
-﻿using WolverineMultiTenantExample.Services;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using WolverineMultiTenantExample.Services;
 
 namespace WolverineMultiTenantExample
 {
@@ -37,8 +39,9 @@ namespace WolverineMultiTenantExample
                     {
                         try
                         {
+
+                            using var scope = _serviceProvider.CreateScope();
                             // Create a new scope for this tenant
-                            using var scope = _serviceProvider.CreateTenantScope(tenant);
                             var messagePublisher = scope.ServiceProvider.GetRequiredService<IMessagePublisher>();
                             
                             // Publish messages for this specific tenant

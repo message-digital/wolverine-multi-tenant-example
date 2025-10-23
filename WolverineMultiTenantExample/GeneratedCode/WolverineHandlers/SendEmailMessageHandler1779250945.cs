@@ -27,22 +27,22 @@ namespace Internal.Generated.WolverineHandlers
 
         public override async System.Threading.Tasks.Task HandleAsync(Wolverine.Runtime.MessageContext context, System.Threading.CancellationToken cancellation)
         {
+            var tenantIdentifier = new JasperFx.MultiTenancy.TenantId(context.TenantId);
             using var serviceScope = _serviceScopeFactory.CreateScope();
             
             /*
-            * Using the scoped provider service location approach
-            * because at least one dependency is directly using IServiceProvider or has an opaque, scoped or transient Lambda registration
+            * The service registration for WolverineMultiTenantExample.ITenantServiceFactory<WolverineMultiTenantExample.Data.TenantDbContext> is an 'opaque' lambda factory with the Scoped lifetime and requires service location
             */
-            var tenantContext = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<WolverineMultiTenantExample.ITenantContext>(serviceScope.ServiceProvider);
+            var tenantServiceFactory = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<WolverineMultiTenantExample.ITenantServiceFactory<WolverineMultiTenantExample.Data.TenantDbContext>>(serviceScope.ServiceProvider);
             // The actual message body
             var sendEmailMessage = (WolverineMultiTenantExample.Models.SendEmailMessage)context.Envelope.Message;
 
-            var tenantContextMiddleware = new WolverineMultiTenantExample.TenantContextMiddleware(tenantContext, _tenantService, _logger1);
-            await tenantContextMiddleware.BeforeAsync(context).ConfigureAwait(false);
+            var tenantContextMiddleware = new WolverineMultiTenantExample.TenantContextMiddleware(_tenantService, _logger1);
+            var tenant = await tenantContextMiddleware.BeforeAsync(context, tenantIdentifier).ConfigureAwait(false);
             try
             {
                 System.Diagnostics.Activity.Current?.SetTag("message.handler", "WolverineMultiTenantExample.EmailHandler");
-                var emailHandler = new WolverineMultiTenantExample.EmailHandler(tenantContext, serviceScope.ServiceProvider, _logger2);
+                var emailHandler = new WolverineMultiTenantExample.EmailHandler(tenant, tenantServiceFactory, _logger2);
                 
                 // The actual message execution
                 await emailHandler.Handle(sendEmailMessage).ConfigureAwait(false);

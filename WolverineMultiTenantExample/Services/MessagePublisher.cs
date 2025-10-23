@@ -52,7 +52,7 @@ public class MessagePublisher : IMessagePublisher
             CustomerName = $"Customer-{Random.Shared.Next(100, 999)}"
         };
 
-        await _messageBus.PublishAsync(orderMessage);
+        await _messageBus.PublishAsync(orderMessage, new DeliveryOptions { TenantId = tenantId });
         _logger.LogInformation("Published order message {OrderId} for tenant {TenantId}", 
             orderMessage.OrderId, tenantId);
 
@@ -65,7 +65,7 @@ public class MessagePublisher : IMessagePublisher
             Body = $"Your order {orderMessage.OrderId} has been processed."
         };
 
-        await _messageBus.PublishAsync(emailMessage);
+        await _messageBus.PublishAsync(emailMessage, new DeliveryOptions { TenantId = tenantId });
         _logger.LogInformation("Published email message for tenant {TenantId}", tenantId);
     }
 }

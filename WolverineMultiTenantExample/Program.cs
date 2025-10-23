@@ -19,15 +19,18 @@ namespace WolverineMultiTenantExample
                 options.UseSqlite("Data Source=_app_data/wolverine.db;Cache=Shared"));
 
             // Add tenant services
-            builder.Services.AddScoped<ITenantContext, TenantContext>();
             builder.Services.AddSingleton<ITenantService, TenantService>();
             builder.Services.AddScoped<IMessagePublisher, MessagePublisher>();
+            builder.Services.AddScoped<TenantContextMiddleware>();
 
-            builder.Services.AddDbContext<TenantDbContext>((sp, options) =>
+            builder.Services.AddScopedTenantServiceFactory((sp, tenant) =>
             {
-                var tenant = sp.GetRequiredService<ITenantContext>().CurrentTenant ?? throw new InvalidOperationException("No Tenant Context");
-                options.UseSqlite(tenant.ConnectionString);
+                var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
+                optionsBuilder.UseSqlite(tenant.ConnectionString);
+                return new TenantDbContext(optionsBuilder.Options);
             });
+
+            builder.Services.AddScopedTenantServiceFactory<ISimpleTenantScoped, SimpleTenantScoped>();
 
             // Add the background worker
             builder.Services.AddHostedService<Worker>();
@@ -56,7 +59,7 @@ namespace WolverineMultiTenantExample
                 opts.PublishMessage<SendEmailMessage>().ToLocalQueue("emails");
                 // Configure middleware policies
                 // QUESTION: For some reason message type specific middleware registration is not working as expected
-                // opts.Policies.ForMessagesOfType<ITenantScoped>().AddMiddleware<TenantContextMiddleware>();
+                //opts.Policies.ForMessagesOfType<ITenantScoped>().AddMiddleware<TenantContextMiddleware>();
                 opts.Policies.AddMiddleware<TenantContextMiddleware>();
             });
 
@@ -78,12 +81,13 @@ namespace WolverineMultiTenantExample
             
             foreach (var tenant in tenants)
             {
-                using var scope = serviceProvider.CreateTenantScope(tenant);
+                using var scope = serviceProvider.CreateScope();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                var dbContextFactory = scope.ServiceProvider.GetRequiredService<ITenantServiceFactory<TenantDbContext>>();
 
                 try
                 {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<TenantDbContext>();
+                    var dbContext = dbContextFactory.GetService(tenant);
                     await dbContext.Database.EnsureCreatedAsync();
                     logger.LogInformation("Ensured database exists for tenant {TenantId} - {TenantName}", tenant.Id, tenant.Name);
                 }

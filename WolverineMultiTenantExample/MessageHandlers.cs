@@ -6,26 +6,30 @@ namespace WolverineMultiTenantExample;
 
 public class OrderHandler
 {
-    private readonly ITenantContext _tenantContext;
+    private readonly Tenant _tenantContext;
     private readonly TenantDbContext _dbContext;
+    private readonly ISimpleTenantScoped _simpleTenantScoped;
     private readonly ILogger<OrderHandler> _logger;
 
     public OrderHandler(
-        ITenantContext tenantContext, 
-        IServiceProvider serviceProvider,
+        Tenant tenant,
+        ITenantServiceFactory<TenantDbContext> dbContextFactory,
+        ITenantServiceFactory<ISimpleTenantScoped> tenantServiceFactory,
         ILogger<OrderHandler> logger)
     {
-        _tenantContext = tenantContext;
+        _tenantContext = tenant;
         // QUESTION: Typically we would inject TenantDbContext directly but due to how dependencies are resolved in generated code we cannot
         // and must resolve it now or inject a factory. Is this acceptable?
-        _dbContext = serviceProvider.GetRequiredService<TenantDbContext>();
+        _dbContext = dbContextFactory.GetService(tenant);
+        _simpleTenantScoped = tenantServiceFactory.GetService(tenant);
         _logger = logger;
     }
 
     public async Task Handle(ProcessOrderMessage message)
     {
-        var tenantId = _tenantContext.CurrentTenant?.Id ?? throw new InvalidOperationException("No Tenant Context");
+        var tenantId = _tenantContext.Id;
 
+        _simpleTenantScoped.DisplayTenantInfo();
         // Create and save order to tenant-specific database
         var order = new Order
         {
@@ -72,25 +76,25 @@ public class OrderHandler
 
 public class EmailHandler
 {
-    private readonly ITenantContext _tenantContext;
+    private readonly Tenant _tenant;
     private readonly TenantDbContext _dbContext;
     private readonly ILogger<EmailHandler> _logger;
 
     public EmailHandler(
-        ITenantContext tenantContext,
-        IServiceProvider services,
+        Tenant tenant,
+        ITenantServiceFactory<TenantDbContext> dbContextFactory,
         ILogger<EmailHandler> logger)
     {
         // QUESTION: Due to how dependencies are resolved in generated code we cannot inject TenantDbContext directly
         // and must resolve it now or inject a factory. Is this acceptable?
-        _dbContext = services.GetRequiredService<TenantDbContext>();
-        _tenantContext = tenantContext;
+        _dbContext = dbContextFactory.GetService(tenant);
+        _tenant = tenant;
         _logger = logger;
     }
 
     public async Task Handle(SendEmailMessage message)
     {
-        var tenantId = _tenantContext.CurrentTenant?.Id ?? throw new InvalidOperationException("No Tenant Context");
+        var tenantId = _tenant.Id;
 
         // Simulate email sending
         await Task.Delay(50);

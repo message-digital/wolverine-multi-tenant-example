@@ -24,12 +24,6 @@ namespace WolverineMultiTenantExample
             _serviceProvider = serviceProvider;
         }
 
-        public TenantServiceFactory(IServiceProvider serviceProvider)
-        {
-            _builder = DefaultBuilder;
-            _serviceProvider = serviceProvider;
-        }
-
         public TService GetService(Tenant tenantContext)
         {
             return _builder(_serviceProvider, tenantContext);
@@ -38,13 +32,14 @@ namespace WolverineMultiTenantExample
         public static ITenantServiceFactory<TService> CreateDefault<TImplementation>(IServiceProvider serviceProvider)
             where TImplementation : class, TService
         {
-            return new TenantServiceFactory<TService>(serviceProvider, DefaultBuilder);
+            return new TenantServiceFactory<TService>(serviceProvider, DefaultBuilder<TImplementation>);
         }
 
-        private static TService DefaultBuilder(IServiceProvider serviceProvider, Tenant tenant)
+        private static TService DefaultBuilder<TImplementation>(IServiceProvider serviceProvider, Tenant tenant)
+            where TImplementation : class, TService
         {
             // Use DI and the provided tenant ID to create an instance
-            return ActivatorUtilities.CreateInstance<TService>(serviceProvider, tenant);
+            return ActivatorUtilities.CreateInstance<TImplementation>(serviceProvider, tenant);
         }
     }
 }
